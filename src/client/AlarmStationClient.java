@@ -13,79 +13,96 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 
-public class AlarmStationClient {
+public class AlarmStationClient extends Thread{
 
 	BufferedReader in;
 	PrintWriter out;
-	JFrame frame = new JFrame("Alarm Station " + getSerial());
-	JTextArea messageArea = new JTextArea(8, 40);
-	Boolean enable = false;
-	Boolean response = true;
+//	JFrame frame = new JFrame("Alarm Station " + getSerial());
+//	JTextArea messageArea = new JTextArea(8, 40);
+//	Boolean enable = false;
+	
+	String serverAddress;
+	int serverPort;
+	String serial;
 
-	public AlarmStationClient() {
-
+	public AlarmStationClient(String serverAddress, int serverPort, String serial) {
+		this.serverAddress = serverAddress;
+		this.serverPort = serverPort;
+		this.serial = serial;
+		System.out.println("Alarm Station "+ serial + " connected");
 		// Layout GUI
-		messageArea.setEditable(false);
-		frame.getContentPane().add(new JScrollPane(messageArea), "Center");
-		frame.pack();
+//		messageArea.setEditable(false);
+//		frame.getContentPane().add(new JScrollPane(messageArea), "Center");
+//		frame.pack();
 
+	}
+	
+	private int getServerPort() {
+		return serverPort;
 	}
 
 	/**
 	 * Prompt for and return the address of the server.
 	 */
 	private String getServerAddress() {
-		return "localhost";
+		return serverAddress;
 	}
 
 	/**
 	 * Prompt for and return the desired screen name.
 	 */
-	private String getId() {
+	private String getClientId() {
 		return "ALARM_STATION";
 	}
 
 	private String getSerial() {
-		return "989855758";
+		return serial;
 	}
 
-	private void run() throws IOException {
+	@Override
+	public void run() {
 
 		// Make connection and initialize streams
-		String serverAddress = getServerAddress();
-		Socket socket = new Socket(serverAddress, 9001);
-		in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-		out = new PrintWriter(socket.getOutputStream(), true);
+		try {
+			String serverAddress = getServerAddress();
+			Socket socket = new Socket(serverAddress, getServerPort());
+			in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+			out = new PrintWriter(socket.getOutputStream(), true);
 
-		// Process all messages from server, according to the protocol.
-		while (true) {
-			String line = in.readLine();
-			response= true;
-			System.out.println(line);
-			if (line.startsWith("CLIENT")) {
-				String id = getId();
-				out.println(id);
-				String serial = getSerial();
-				out.println(serial);
-			} else if (line.startsWith("NAMEACCEPTED")) {
-				enable = true;
-			} else if (line.startsWith("MESSAGE")) {
-				String serial = line.split(" ")[4];
-				if (serial.equals(getSerial())) {
-					messageArea.append(line.substring(8) + "\n");
-					if(response) {
-						out.println("RECEIVED!");
-						response = false;
+			// Process all messages from server, according to the protocol.
+			while (true) {
+				String line = in.readLine();
+				System.out.println(line);
+				if (line.startsWith("CLIENT")) {
+					String id = getClientId();
+					out.println(id);
+					String serial = getSerial();
+					out.println(serial);
+				} else if (line.startsWith("NAMEACCEPTED")) {
+//					enable = true;
+				} else if (line.startsWith("MESSAGE")) {
+					String serial = line.split(" ")[4];
+					if (serial.equals(getSerial())) {
+						if(!line.contains("RECEIVED!")) {
+//							messageArea.append(line.substring(8) + "\n");
+							System.out.println(line.substring(8)+ "\n");
+							out.println("RECEIVED!");
+						}
 					}
 				}
 			}
+		} catch (Exception e) {
+			System.err.println(e.getMessage());
 		}
+		
 	}
 
 	public static void main(String[] args) throws Exception {
-		AlarmStationClient client = new AlarmStationClient();
-		client.frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		client.frame.setVisible(true);
-		client.run();
+		for(int i = 0; i<500; i++) {
+			AlarmStationClient client = new AlarmStationClient(/*"ec2-52-67-107-195.sa-east-1.compute.amazonaws.com"*/"localhost", 9001, Integer.toString(i));
+			client.start();
+		}
+//		client.frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+//		client.frame.setVisible(true);
 	}
 }

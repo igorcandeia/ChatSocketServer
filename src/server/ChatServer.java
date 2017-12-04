@@ -80,6 +80,7 @@ public class ChatServer {
 				while (true) {
 					String input = in.readLine();
 					System.out.println(input);
+					System.out.println("id = " + id + "; serial = " + serial);
 					if (input == null) {
 						return;
 					}

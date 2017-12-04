@@ -1,89 +1,117 @@
 package client;
 
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
-
-import javax.swing.JFrame;
-import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
-import javax.swing.JTextField;
+import java.net.UnknownHostException;
 
 public class UserClient {
 
 	BufferedReader in;
 	PrintWriter out;
-	JFrame frame = new JFrame("Client " + getId() + " to "+ getSerial());
-	JTextField textField = new JTextField(40);
-	JTextArea messageArea = new JTextArea(8, 40);
+	String serverAddress;
+	int serverPort;
+	String serial;
+	String id;
 
-	public UserClient() {
-
-		// Layout GUI
-		textField.setEditable(false);
-		messageArea.setEditable(false);
-		frame.getContentPane().add(textField, "North");
-		frame.getContentPane().add(new JScrollPane(messageArea), "Center");
-		frame.pack();
-
-		// Add Listeners
-		textField.addActionListener(new ActionListener() {
-
-			public void actionPerformed(ActionEvent e) {
-				out.println(textField.getText());
-				textField.setText("");
-			}
-		});
+	public UserClient(String serverAddress, int serverPort, String serial, String id) throws UnknownHostException, IOException {
+		this.serverAddress = serverAddress;
+		this.serverPort = serverPort;
+		this.serial = serial;
+		this.id = id;
+	    System.out.println("User "+id+ " connected to "+serial);
+	    
+	    startSendingData();
+	    startReceivingData();
 	}
 
-	private String getServerAddress() {
-		return "localhost";
-	}
-
-	private String getId() {
-		return "02";
-	}
-	
-	private String getSerial() {
-		return "989855758";
-	}
-
-	private void run() throws IOException {
-
-		// Make connection and initialize streams
-		String serverAddress = getServerAddress();
-		Socket socket = new Socket(serverAddress, 9001);
-		in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-		out = new PrintWriter(socket.getOutputStream(), true);
-
-		// Process all messages from server, according to the protocol.
-		while (true) {
-			String line = in.readLine();
-			System.out.println(line);
-			if (line.startsWith("CLIENT")) {
-				String id = getId();
-				out.println(id);
-				String serial = getSerial();
-				out.println(serial);
-			} else if (line.startsWith("NAMEACCEPTED")) {
-				textField.setEditable(true);
-			} else if (line.startsWith("MESSAGE")) {
-				String serial = line.split(" ")[4];
-				if (serial.equals(getSerial())) {
-					messageArea.append(line.substring(8) + "\n");
+	private void startSendingData() {
+		new Thread(new Runnable() {
+			public void run() {
+				try {
+					connect();
+				} catch (UnknownHostException e1) {
+					e1.printStackTrace();
+				} catch (IOException e1) {
+					e1.printStackTrace();
+				}
+				while(true) {
+					try {
+						Thread.sleep(2000);
+					} catch(Exception e){
+						System.err.println(e.getMessage());
+					}
+					if(out!=null) {
+						out.println("MESSAGE_FROM_"+getClientId());
+					}
 				}
 			}
+		}).start();
+	}
+
+	private void connect() throws UnknownHostException, IOException {
+		// Make connection and initialize streams
+		Socket socket = new Socket(getServerAddress(), getServerPort());
+		in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+		out = new PrintWriter(socket.getOutputStream(), true);
+		
+		String line = in.readLine();
+		System.out.println(line);
+		if (line.startsWith("CLIENT")) {
+			String id = getClientId();
+			out.println(id);
+			String serial = getSerial();
+			out.println(serial);
 		}
 	}
 
+	private String getServerAddress() {
+		return serverAddress;
+	}
+	
+	private int getServerPort() {
+		return serverPort;
+	}
+	
+	private String getClientId() {
+		return id;
+	}
+	
+	private String getSerial() {
+		return serial;
+	}
+
+	private void startReceivingData() {
+		new Thread(new Runnable() {
+			@Override
+			public void run() {
+				
+				while (true) {
+					try {
+						String line = in.readLine();
+						if (line.startsWith("MESSAGE")) {
+							String serial = line.split(" ")[4];
+							String id = line.split(" ")[1];
+							if (serial.equals(getSerial()) && id.equals("ALARM_STATION")) {
+								System.out.println(line.substring(8) + "\n");
+							}
+						}
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+		}).start();
+	}
+
 	public static void main(String[] args) throws Exception {
-		UserClient client = new UserClient();
-		client.frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		client.frame.setVisible(true);
-		client.run();
+		for(int i = 0; i<500; i++) {
+			for(int u = 0; u<5; u++) {
+				new UserClient(/*"ec2-52-67-107-195.sa-east-1.compute.amazonaws.com"*/"localhost",9001, Integer.toString(i), Integer.toString(i) + Integer.toString(u));
+			}
+		}
 	}
 }
