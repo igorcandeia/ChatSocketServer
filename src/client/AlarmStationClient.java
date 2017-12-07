@@ -99,7 +99,7 @@ public class AlarmStationClient extends Thread{
 
 	public static void main(String[] args) throws Exception {
 		for(int i = 0; i<500; i++) {
-			AlarmStationClient client = new AlarmStationClient(/*"ec2-52-67-107-195.sa-east-1.compute.amazonaws.com"*/"localhost", 9001, Integer.toString(i));
+			AlarmStationClient client = new AlarmStationClient("localhost", 9001, Integer.toString(i));
 			client.start();
 		}
 //		client.frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);

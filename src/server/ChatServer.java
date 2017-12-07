@@ -16,7 +16,9 @@ public class ChatServer {
 	private static HashSet<String> alarmStations = new HashSet<String>();
 
 	private static HashMap<String, String> clients = new HashMap<String, String>();
-	private static HashSet<PrintWriter> writers = new HashSet<PrintWriter>();
+//	private static HashSet<PrintWriter> writers = new HashSet<PrintWriter>();
+
+	private static HashMap<String, HashSet<PrintWriter>> alarmStationWriters = new HashMap<String, HashSet<PrintWriter>>();
 
 	public static void main(String[] args) throws Exception {
 		System.out.println("The chat server is running.");
@@ -53,11 +55,15 @@ public class ChatServer {
 					out.println("CLIENT");
 					id = in.readLine();
 					serial = in.readLine();
+					
 					if (serial == null) {
 						return;
+					} else {
+						alarmStationWriters.put(serial, new HashSet<>());
 					}
 					if (id.equals(ALARM_STATION)) {
 						synchronized (alarmStations) {
+							
 							if (!alarmStations.contains(serial)) {
 								alarmStations.add(serial);
 								break;
@@ -75,7 +81,11 @@ public class ChatServer {
 				}
 
 				out.println("NAMEACCEPTED");
-				writers.add(out);
+//				writers.add(out);
+				if(serial != null && alarmStationWriters.containsKey(serial)) {
+					alarmStationWriters.get(serial).add(out);
+				}
+				
 
 				while (true) {
 					String input = in.readLine();
@@ -84,23 +94,26 @@ public class ChatServer {
 					if (input == null) {
 						return;
 					}
-					for (PrintWriter writer : writers) {
+					for (PrintWriter writer : alarmStationWriters.get(serial)) {
 						writer.println("MESSAGE " + id + " sent to " + serial + " : " + input);
 					}
 				}
 			} catch (IOException e) {
 				System.out.println(e);
 			} finally {
-				if (serial != null && id == ALARM_STATION) {
+				
+				if (serial != null && id.equals(ALARM_STATION)) {				
 					alarmStations.remove(serial);
 				}
 
-				if (id != null && id != ALARM_STATION) {
+				if (id != null && id.equals(ALARM_STATION)) {
 					clients.remove(id);
 				}
 
 				if (out != null) {
-					writers.remove(out);
+					if(serial != null && alarmStationWriters.containsKey(serial)) {
+						alarmStationWriters.get(serial).remove(out);
+					}
 				}
 				try {
 					socket.close();
