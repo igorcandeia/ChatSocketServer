@@ -20,6 +20,7 @@ public class ChatServer {
 
 	private static HashMap<String, HashSet<PrintWriter>> alarmStationWriters = new HashMap<String, HashSet<PrintWriter>>();
 
+	private static int cont= 0;
 	public static void main(String[] args) throws Exception {
 		System.out.println("The chat server is running.");
 		ServerSocket listener = new ServerSocket(PORT);
@@ -53,12 +54,13 @@ public class ChatServer {
 
 				while (true) {
 					out.println("CLIENT");
+					cont++;
 					id = in.readLine();
 					serial = in.readLine();
-					
+					System.out.println("["+cont+"] Client "+ id + " connect to serial "+serial);
 					if (serial == null) {
 						return;
-					} else {
+					} else if(!alarmStationWriters.containsKey(serial)) {
 						alarmStationWriters.put(serial, new HashSet<>());
 					}
 					if (id.equals(ALARM_STATION)) {
@@ -89,11 +91,13 @@ public class ChatServer {
 
 				while (true) {
 					String input = in.readLine();
-					System.out.println(input);
-					System.out.println("id = " + id + "; serial = " + serial);
-					if (input == null) {
+//					System.out.println("id = " + id + "; serial = " + serial);
+					
+					if(input == null ) {
+//						System.out.println("Error on " +cont);
 						return;
 					}
+					
 					for (PrintWriter writer : alarmStationWriters.get(serial)) {
 						writer.println("MESSAGE " + id + " sent to " + serial + " : " + input);
 					}

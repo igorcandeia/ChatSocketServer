@@ -7,6 +7,9 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 
 public class UserClient {
 
@@ -22,22 +25,26 @@ public class UserClient {
 		this.serverPort = serverPort;
 		this.serial = serial;
 		this.id = id;
-	    System.out.println("User "+id+ " connected to "+serial);
 	    
-	    startSendingData();
-	    startReceivingData();
+	    Socket socket = new Socket(getServerAddress(), getServerPort());
+		in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+		out = new PrintWriter(socket.getOutputStream(), true);
+		
+		String line = in.readLine();
+		if (line.startsWith("CLIENT")) {
+			out.println(id);
+			out.println(serial);
+			System.out.println("User "+id+ " connected to "+serial);
+		}
+		
+//	    startReceivingData();
+//	    startSendingData();
 	}
 
 	private void startSendingData() {
 		new Thread(new Runnable() {
 			public void run() {
-				try {
-					connect();
-				} catch (UnknownHostException e1) {
-					e1.printStackTrace();
-				} catch (IOException e1) {
-					e1.printStackTrace();
-				}
+				
 				while(true) {
 					try {
 						Thread.sleep(2000);
@@ -51,6 +58,11 @@ public class UserClient {
 			}
 		}).start();
 	}
+	
+	private void sendMessage() {
+		out.println("MESSAGE_FROM_"+getClientId());
+		System.out.println("MESSAGE_FROM_"+getClientId());
+	}
 
 	private void connect() throws UnknownHostException, IOException {
 		// Make connection and initialize streams
@@ -59,7 +71,6 @@ public class UserClient {
 		out = new PrintWriter(socket.getOutputStream(), true);
 		
 		String line = in.readLine();
-		System.out.println(line);
 		if (line.startsWith("CLIENT")) {
 			String id = getClientId();
 			out.println(id);
@@ -88,15 +99,24 @@ public class UserClient {
 		new Thread(new Runnable() {
 			@Override
 			public void run() {
+				try {
+					connect();
+				} catch (UnknownHostException e1) {
+					e1.printStackTrace();
+				} catch (IOException e1) {
+					e1.printStackTrace();
+				}
 				
 				while (true) {
 					try {
-						String line = in.readLine();
-						if (line.startsWith("MESSAGE")) {
-							String serial = line.split(" ")[4];
-							String id = line.split(" ")[1];
-							if (serial.equals(getSerial()) && id.equals("ALARM_STATION")) {
-								System.out.println(line.substring(8) + "\n");
+						if (in!= null) {
+							String line = in.readLine();
+							if (line.startsWith("MESSAGE")) {
+								String serial = line.split(" ")[4];
+								String id = line.split(" ")[1];
+								if (serial.equals(getSerial()) && id.equals("ALARM_STATION")) {
+									System.out.println(line.substring(8) + "\n");
+								}
 							}
 						}
 					} catch (IOException e) {
@@ -108,10 +128,33 @@ public class UserClient {
 	}
 
 	public static void main(String[] args) throws Exception {
-		for(int i = 0; i<500; i++) {
+//		String ip = args[0];
+//		int initId = Integer.parseInt(args[1]);
+//		int endId = initId+500;
+		List<UserClient> clients = new ArrayList<>();
+//		int cont =0;
+		for(int i = 0; i<2500; i++) {
 			for(int u = 0; u<5; u++) {
-				new UserClient(/*"ec2-52-67-107-195.sa-east-1.compute.amazonaws.com"*/"localhost",9001, Integer.toString(i), Integer.toString(i) + Integer.toString(u));
+				UserClient client= new UserClient("localhost",9001, Integer.toString(i), Integer.toString(i) + Integer.toString(u));
+//				System.out.println(cont++);
+//				UserClient client= new UserClient("ec2-52-67-107-195.sa-east-1.compute.amazonaws.com",9001, Integer.toString(i), Integer.toString(i) + Integer.toString(u));
+				clients.add(client);
 			}
 		}
+		
+		for (int i = 0; i<5; i++) {
+			new Thread(new Runnable() {
+				
+				@Override
+				public void run() {
+					while(true) {
+						UserClient randomClient = clients.get(new Random().nextInt(clients.size()));
+						randomClient.sendMessage();
+					}
+					
+				}
+			}).start();
+		}
+		
 	}
 }

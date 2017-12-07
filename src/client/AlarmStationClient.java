@@ -1,25 +1,16 @@
 package client;
 
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
-
-import javax.swing.JFrame;
-import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
-import javax.swing.JTextField;
+import java.net.UnknownHostException;
 
 public class AlarmStationClient extends Thread{
 
 	BufferedReader in;
 	PrintWriter out;
-//	JFrame frame = new JFrame("Alarm Station " + getSerial());
-//	JTextArea messageArea = new JTextArea(8, 40);
-//	Boolean enable = false;
 	
 	String serverAddress;
 	int serverPort;
@@ -29,11 +20,17 @@ public class AlarmStationClient extends Thread{
 		this.serverAddress = serverAddress;
 		this.serverPort = serverPort;
 		this.serial = serial;
-		System.out.println("Alarm Station "+ serial + " connected");
-		// Layout GUI
-//		messageArea.setEditable(false);
-//		frame.getContentPane().add(new JScrollPane(messageArea), "Center");
-//		frame.pack();
+		
+		Socket socket;
+		try {
+			socket = new Socket(serverAddress, getServerPort());
+			in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+			out = new PrintWriter(socket.getOutputStream(), true);
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 
 	}
 	
@@ -62,29 +59,25 @@ public class AlarmStationClient extends Thread{
 	@Override
 	public void run() {
 
-		// Make connection and initialize streams
 		try {
-			String serverAddress = getServerAddress();
-			Socket socket = new Socket(serverAddress, getServerPort());
-			in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-			out = new PrintWriter(socket.getOutputStream(), true);
+//			String serverAddress = getServerAddress();
+//			Socket socket = new Socket(serverAddress, getServerPort());
+//			in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+//			out = new PrintWriter(socket.getOutputStream(), true);
 
-			// Process all messages from server, according to the protocol.
 			while (true) {
 				String line = in.readLine();
-				System.out.println(line);
+//				System.out.println(line);
 				if (line.startsWith("CLIENT")) {
 					String id = getClientId();
 					out.println(id);
 					String serial = getSerial();
 					out.println(serial);
-				} else if (line.startsWith("NAMEACCEPTED")) {
-//					enable = true;
+//					System.out.println("Alarm Station "+ serial + " connected");
 				} else if (line.startsWith("MESSAGE")) {
 					String serial = line.split(" ")[4];
 					if (serial.equals(getSerial())) {
 						if(!line.contains("RECEIVED!")) {
-//							messageArea.append(line.substring(8) + "\n");
 							System.out.println(line.substring(8)+ "\n");
 							out.println("RECEIVED!");
 						}
@@ -92,17 +85,19 @@ public class AlarmStationClient extends Thread{
 				}
 			}
 		} catch (Exception e) {
-			System.err.println(e.getMessage());
+			System.err.println("Alarm Station "+ serial + " error: "+e.getMessage());
 		}
 		
 	}
 
 	public static void main(String[] args) throws Exception {
-		for(int i = 0; i<500; i++) {
+//		String ip = args[0];
+//		int initId = Integer.parseInt(args[1]);
+//		int endId = initId+500;
+		for(int i = 0; i<2500; i++) {
+//			AlarmStationClient client = new AlarmStationClient("ec2-52-67-107-195.sa-east-1.compute.amazonaws.com", 9001, Integer.toString(i));
 			AlarmStationClient client = new AlarmStationClient("localhost", 9001, Integer.toString(i));
 			client.start();
 		}
-//		client.frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-//		client.frame.setVisible(true);
 	}
 }
